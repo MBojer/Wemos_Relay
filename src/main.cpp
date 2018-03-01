@@ -8,24 +8,25 @@ const char* ssid = "NoInternetHere";
 // const char* ssid = "NoInternetHereEither";
 const char* password = "NoPassword1!";
 
-const int Dimmer_1 = 5;
-const int Dimmer_2 = 4;
-const int Dimmer_3 = 14;
-const int Dimmer_4 = 12;
-const int Dimmer_5 = 13;
+const int Relay_Pin[] {5, 4, 14, 12, 13, 15};
+/*
+D3 = Not used
+D4 =  Not used (BUILTIN_LED)
+D0 = 16 -
 
-unsigned int Light_Strength = 0;
+3 - D1 = 5
+4 - D2 = 4
 
-unsigned int Light_Strength_Procent = 0;
+5 - D5 = 14
+6 - D6 = 12
+7 - D7 = 13
+8 - D8 = 15
+*/
 
-byte Strenght_Dimmer_1 = 0;
-byte Strenght_Dimmer_2 = 0;
-byte Strenght_Dimmer_3 = 0;
-byte Strenght_Dimmer_4 = 0;
-byte Strenght_Dimmer_5 = 0;
+bool Relay_State[6];
 
 
-byte Fade_Jump = 25;
+
 
 byte WiFi_Connected = false;
 
@@ -105,20 +106,11 @@ void setup() {
   Serial.println();
 
   pinMode(BUILTIN_LED, OUTPUT);
-  pinMode(Dimmer_1, OUTPUT);
-  pinMode(Dimmer_2, OUTPUT);
-  pinMode(Dimmer_3, OUTPUT);
-  pinMode(Dimmer_4, OUTPUT);
-  pinMode(Dimmer_5, OUTPUT);
 
-
-  analogWrite(Dimmer_1, 0);
-  analogWrite(Dimmer_2, 0);
-  analogWrite(Dimmer_3, 0);
-  analogWrite(Dimmer_4, 0);
-  analogWrite(Dimmer_5, 0);
-
-
+  for (byte i = 0; i < 6; i++) {
+    pinMode(Relay_Pin[i], OUTPUT);
+    digitalWrite(Relay_Pin[i], 0);
+  }
 
 
 
@@ -151,64 +143,36 @@ void loop() {
 
   // remove "/light" and set light based on % number in get requist
 
-  if (request.indexOf("GET /Dimmer_") != -1) {
+  if (request.indexOf("GET /Relay_") != -1) {
 
-    request.replace("GET /", "");
+    request.replace("GET /Relay_", "");
     request.replace(" HTTP/1.1", "");
 
-    // don't remove "Dimmer_" and make define statements matching dimmer_1 to something then use them to set pinf numbers, not possible it seems
+    byte Selected_Relay = request.substring(0, request.indexOf("-")).toInt();
 
-    String Selected_Dimmer = request.substring(0, request.indexOf("-"));
+    byte Selected_State = request.substring(request.indexOf("-") + 1, request.length()).toInt();
 
-    Light_Strength_Procent = request.substring(request.indexOf("-") + 1, request.length()).toInt();
-
-    Light_Strength = (Light_Strength_Procent * 0.01) * 1023;
-    Serial.print("Light_Strength: ");
-    Serial.println(Light_Strength);
-
-    if (Selected_Dimmer == "Dimmer_1") {
-      analogWrite(Dimmer_1, Light_Strength);
-      Strenght_Dimmer_1 = Light_Strength_Procent;
-      Serial.print("Dimmer 1: ");
-      Serial.println(Light_Strength);
-    }
-    else if (Selected_Dimmer == "Dimmer_2") {
-      analogWrite(Dimmer_2, Light_Strength);
-      Strenght_Dimmer_2 = Light_Strength_Procent;
-      Serial.print("Dimmer 2: ");
-      Serial.println(Light_Strength);
-    }
-    else if (Selected_Dimmer == "Dimmer_3") {
-      analogWrite(Dimmer_3, Light_Strength);
-      Strenght_Dimmer_3 = Light_Strength_Procent;
-      Serial.print("Dimmer 3: ");
-      Serial.println(Light_Strength);
-    }
-    else if (Selected_Dimmer == "Dimmer_4") {
-      analogWrite(Dimmer_4, Light_Strength);
-      Strenght_Dimmer_4 = Light_Strength_Procent;
-      Serial.print("Dimmer 4: ");
-      Serial.println(Light_Strength);
-    }
-    else if (Selected_Dimmer == "Dimmer_5") {
-      analogWrite(Dimmer_5, Light_Strength);
-      Strenght_Dimmer_5 = Light_Strength_Procent;
-      Serial.print("Dimmer 5: ");
-      Serial.println(Light_Strength);
-    }
-    else if (Selected_Dimmer == "Dimmer_99") {
-      analogWrite(Dimmer_1, 0);
-      Strenght_Dimmer_1 = 0;
-      analogWrite(Dimmer_2, 0);
-      Strenght_Dimmer_2 = 0;
-      analogWrite(Dimmer_3, 0);
-      Strenght_Dimmer_3 = 0;
-      analogWrite(Dimmer_4, 0);
-      Strenght_Dimmer_4 = 0;
-      analogWrite(Dimmer_5, 0);
-      Strenght_Dimmer_5 = 0;
+    if (Selected_Relay == 99) {
+      for (byte i = 0; i < 6; i++) {
+        Relay_State[i] = 0;
+        digitalWrite(Relay_Pin[i], 0);
+      }
       Serial.println("All OFF");
     }
+
+    else {
+      Selected_Relay = Selected_Relay - 1; // Done to compensate for the array number beaingg -1 in relation to relay number
+
+      Relay_State[Selected_Relay] = Selected_State;
+      digitalWrite(Relay_Pin[Selected_Relay], Relay_State[Selected_Relay]);
+
+      Serial.print("Relay " + String(Selected_Relay + 1) + ": ");
+      if (Relay_State[Selected_Relay] == 0) Serial.println("OFF");
+      else Serial.println("ON");
+
+    }
+
+
   }
 
 
@@ -221,60 +185,17 @@ void loop() {
   client.println("<!DOCTYPE HTML>");
   client.println("<html>");
 
-  client.println("Wemos Dimmer v2.0");
+  client.println("Wemos Relay v0.1");
   client.println("<br><br>");
 
-  client.print("Dimmer 1: ");
-  client.print(Strenght_Dimmer_1);
-  client.println("&#37<br>");
-
-  client.print("Dimmer 2: ");
-  client.print(Strenght_Dimmer_2);
-  client.println("&#37<br>");
-
-  client.print("Dimmer 3: ");
-  client.print(Strenght_Dimmer_3);
-  client.println("&#37<br>");
-
-  client.print("Dimmer 4: ");
-  client.print(Strenght_Dimmer_4);
-  client.println("&#37<br>");
-
-  client.print("Dimmer 5: ");
-  client.print(Strenght_Dimmer_5);
-  client.println("&#37<br>");
-
-  client.println("<br><br>");
-  client.println("<a href=\"/i2c\">i2c Test");
+  for (byte i = 0; i < 6; i++) {
+    client.print("Relay " + String(i + 1) + ": ");
+    if (Relay_State[i] == LOW) client.print("OFF");
+    else client.print("ON");
+    client.println("<br>");
+  }
 
 
-  //
-  //
-  // if (Light_Strength == 0) {
-  //   client.print("0 procent");
-  // }
-  // else if (Light_Strength == 767) {
-  //   client.print("25 procent");
-  // }
-  // else if (Light_Strength == 512) {
-  //   client.print("50 procent");
-  // }
-  // else if (Light_Strength == 255) {
-  //   client.print("75 procent");
-  // }
-  // else if (Light_Strength == 255) {
-  //   client.print("100 procent");
-  // }
-  //
-  //
-  // client.println("<br><br>");
-  // client.println("<a href=\"/Light=25\">Change light strenght to: 25 procent");
-  // client.println("<br><br>");
-  // client.println("<a href=\"/Light=50\">Change light strenght to: 50 procent");
-  // client.println("<br><br>");
-  // client.println("<a href=\"/Light=75\">Change light strenght to: 75 procent");
-  // client.println("<br><br>");
-  // client.println("<a href=\"/Light=100\">Change light strenght to: 100 procent");
   client.println("</html>");
 
   delay(1);
